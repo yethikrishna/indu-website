@@ -1,22 +1,54 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { Draggable } from "gsap/Draggable";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Database, Network, Cpu } from "lucide-react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { useGLTF, Environment, Float, PresentationControls } from "@react-three/drei";
+import * as THREE from "three";
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(useGSAP, Draggable, ScrollTrigger);
 }
 
+// Lazy-loaded 3D Model Component to adhere to 100/100 Lighthouse Budget
+function Model({ path, color }: { path: string, color: string }) {
+  const { scene } = useGLTF(path);
+  const meshRef = useRef<THREE.Group>(null);
+
+  useFrame((state) => {
+    if (meshRef.current) {
+      meshRef.current.rotation.y = state.clock.elapsedTime * 0.2;
+    }
+  });
+
+  return (
+    <Float speed={2} rotationIntensity={0.5} floatIntensity={1}>
+      <primitive ref={meshRef} object={scene} scale={2} />
+      <directionalLight position={[10, 10, 10]} intensity={1.5} color={color} />
+    </Float>
+  );
+}
+
 export default function FrameworkPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
+  const webglTriggerRef = useRef<HTMLDivElement>(null);
+  const [shouldRenderWebGL, setShouldRenderWebGL] = useState(false);
 
   useGSAP(() => {
     if (!containerRef.current) return;
+
+    // Interaction-Driven Loading: Only mount WebGL when scrolling near it
+    ScrollTrigger.create({
+      trigger: webglTriggerRef.current,
+      start: "top bottom+=200", // Predictive Proximity Hydration
+      onEnter: () => setShouldRenderWebGL(true),
+      once: true,
+    });
 
     // ScrollTrigger Skeleton Hook for the framework nodes
     gsap.fromTo(".drag-node", 
@@ -61,14 +93,29 @@ export default function FrameworkPage() {
         </p>
       </div>
 
-      {/* Skeleton Hook Placeholder for 3D/WebGL */}
-      <div className="w-full h-screen flex items-center justify-center border-y border-gray-800 bg-[#0a0a0a] mb-32 relative overflow-hidden">
-         <div className="absolute inset-0 opacity-10 flex flex-col items-center justify-center pointer-events-none">
+      {/* Render-On-Scroll WebGL Section */}
+      <div ref={webglTriggerRef} className="w-full h-screen flex items-center justify-center border-y border-gray-800 bg-[#0a0a0a] mb-32 relative overflow-hidden">
+         <div className="absolute inset-0 opacity-10 flex flex-col items-center justify-center pointer-events-none z-0">
             <div className="w-full h-px bg-[#00e5ff] absolute top-1/2 -translate-y-1/2" />
             <div className="h-full w-px bg-[#00e5ff] absolute left-1/2 -translate-x-1/2" />
-            <h2 className="text-[15vw] font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-gray-800 to-black">WEBGL SKELETON</h2>
+            <h2 className="text-[15vw] font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-gray-800 to-black">INDU CORE</h2>
          </div>
-         <p className="text-gray-400 font-mono z-10">[ Month 10: Inject TripoSR .glb assets here. Render on Scroll Only. ]</p>
+         
+         <div className="absolute inset-0 z-10">
+           {shouldRenderWebGL ? (
+             <Canvas camera={{ position: [0, 0, 10], fov: 45 }}>
+               <ambientLight intensity={0.5} />
+               <Environment preset="city" />
+               <PresentationControls global rotation={[0, 0.3, 0]} polar={[-0.4, 0.2]} azimuth={[-1, 0.75]} config={{ mass: 2, tension: 400 }} snap={{ mass: 4, tension: 400 }}>
+                  <Model path="/models/tesseract.glb" color="#00e5ff" />
+               </PresentationControls>
+             </Canvas>
+           ) : (
+             <div className="w-full h-full flex items-center justify-center">
+               <p className="text-gray-500 font-mono text-sm animate-pulse">[ Hydrating WebGL Pipeline... ]</p>
+             </div>
+           )}
+         </div>
       </div>
 
       <div ref={triggerRef} className="w-full max-w-6xl mx-auto mb-12">
