@@ -5,13 +5,15 @@ import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { Flip } from "gsap/Flip";
 import { TextPlugin } from "gsap/TextPlugin";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 if (typeof window !== "undefined") {
-  gsap.registerPlugin(useGSAP, Flip, TextPlugin);
+  gsap.registerPlugin(useGSAP, Flip, TextPlugin, ScrollTrigger);
 }
 
 export default function LanguagePage() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
   const [isNative, setIsNative] = useState(true);
 
   useGSAP((context, contextSafe) => {
@@ -24,6 +26,25 @@ export default function LanguagePage() {
       },
       ease: "none"
     });
+
+    // ScrollTrigger Skeleton Hook for syntax cards
+    if (triggerRef.current) {
+      gsap.fromTo(".syntax-card", 
+        { opacity: 0, y: 50 },
+        { 
+          opacity: 1, 
+          y: 0, 
+          stagger: 0.1, 
+          duration: 0.8, 
+          ease: "power2.out",
+          scrollTrigger: {
+            trigger: triggerRef.current,
+            start: "top 80%",
+            toggleActions: "play none none reverse"
+          }
+        }
+      );
+    }
 
     const toggleLayout = contextSafe!(() => {
       const state = Flip.getState(".syntax-card, .syntax-container");
@@ -65,7 +86,7 @@ export default function LanguagePage() {
           </button>
         </div>
 
-        <div className={`syntax-container grid gap-8 ${isNative ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
+        <div ref={triggerRef} className={`syntax-container grid gap-8 ${isNative ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
           <div className="syntax-card bg-[#111] border border-gray-800 p-8 rounded-xl">
             <div className="font-mono text-sm text-gray-500 mb-4">Actor Model (agent)</div>
             <pre className="font-mono text-[#00e5ff] text-sm overflow-x-auto">

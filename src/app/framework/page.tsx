@@ -4,17 +4,38 @@ import { useRef } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { Draggable } from "gsap/Draggable";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { Database, Network, Cpu } from "lucide-react";
 
 if (typeof window !== "undefined") {
-  gsap.registerPlugin(useGSAP, Draggable);
+  gsap.registerPlugin(useGSAP, Draggable, ScrollTrigger);
 }
 
 export default function FrameworkPage() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
 
   useGSAP(() => {
     if (!containerRef.current) return;
+
+    // ScrollTrigger Skeleton Hook for the framework nodes
+    gsap.fromTo(".drag-node", 
+      { opacity: 0, scale: 0.5, y: 100 },
+      { 
+        opacity: 1, 
+        scale: 1, 
+        y: 0, 
+        stagger: 0.2, 
+        duration: 1.5, 
+        ease: "back.out(1.7)",
+        scrollTrigger: {
+          trigger: triggerRef.current,
+          start: "top 70%",
+          end: "bottom 30%",
+          toggleActions: "play none none reverse"
+        }
+      }
+    );
 
     Draggable.create(".drag-node", {
       bounds: containerRef.current,
@@ -27,10 +48,6 @@ export default function FrameworkPage() {
       }
     });
 
-    gsap.fromTo(".drag-node", 
-      { opacity: 0, scale: 0.5, y: 100 },
-      { opacity: 1, scale: 1, y: 0, stagger: 0.1, duration: 1, ease: "back.out(1.7)" }
-    );
   }, { scope: containerRef });
 
   return (
@@ -44,7 +61,22 @@ export default function FrameworkPage() {
         </p>
       </div>
 
-      <div ref={containerRef} className="relative w-full max-w-6xl h-[60vh] border border-gray-800 rounded-3xl bg-[#0a0a0a] overflow-hidden">
+      {/* Skeleton Hook Placeholder for 3D/WebGL */}
+      <div className="w-full h-screen flex items-center justify-center border-y border-gray-800 bg-[#0a0a0a] mb-32 relative overflow-hidden">
+         <div className="absolute inset-0 opacity-10 flex flex-col items-center justify-center pointer-events-none">
+            <div className="w-full h-px bg-[#00e5ff] absolute top-1/2 -translate-y-1/2" />
+            <div className="h-full w-px bg-[#00e5ff] absolute left-1/2 -translate-x-1/2" />
+            <h2 className="text-[15vw] font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-gray-800 to-black">WEBGL SKELETON</h2>
+         </div>
+         <p className="text-gray-400 font-mono z-10">[ Month 10: Inject TripoSR .glb assets here. Render on Scroll Only. ]</p>
+      </div>
+
+      <div ref={triggerRef} className="w-full max-w-6xl mx-auto mb-12">
+         <h2 className="text-4xl font-bold mb-4">Architecture Nodes</h2>
+         <p className="text-gray-400 font-mono">Powered by GSAP Draggable + ScrollTrigger Scrub.</p>
+      </div>
+
+      <div ref={containerRef} className="relative w-full max-w-6xl h-[60vh] border border-gray-800 rounded-3xl bg-[#0a0a0a] overflow-hidden mb-32">
         
         {/* Background Grid */}
         <div className="absolute inset-0 pointer-events-none opacity-20" style={{

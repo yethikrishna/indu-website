@@ -4,10 +4,11 @@ import { useRef } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { SplitText } from "gsap/SplitText";
 import { CheckCircle2, CircleDashed } from "lucide-react";
 
 if (typeof window !== "undefined") {
-  gsap.registerPlugin(useGSAP, ScrollTrigger);
+  gsap.registerPlugin(useGSAP, ScrollTrigger, SplitText);
 }
 
 const PHASES = [
@@ -19,6 +20,7 @@ const PHASES = [
 
 export default function Foundation() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const manifestoRef = useRef<HTMLParagraphElement>(null);
 
   useGSAP(() => {
     // Pin the left section while right scrolls
@@ -29,6 +31,29 @@ export default function Foundation() {
       pin: ".sticky-text",
       pinSpacing: false
     });
+
+    // Text Wave Math Pre-calculation for Manifesto
+    if (manifestoRef.current) {
+      const split = new SplitText(manifestoRef.current, { type: "words,chars" });
+      
+      gsap.fromTo(split.chars, 
+        { 
+          opacity: 0.1, 
+          color: "#4b5563", // text-gray-600
+        },
+        {
+          opacity: 1,
+          color: "#ffffff",
+          stagger: 0.05,
+          scrollTrigger: {
+            trigger: manifestoRef.current,
+            start: "top 80%",
+            end: "bottom 40%",
+            scrub: true,
+          }
+        }
+      );
+    }
 
     const lines = gsap.utils.toArray(".timeline-line");
     lines.forEach((line: unknown) => {
@@ -78,7 +103,7 @@ export default function Foundation() {
           <h2 className="text-5xl md:text-8xl font-bold tracking-tighter uppercase mb-6 text-transparent bg-clip-text bg-gradient-to-r from-gray-100 to-gray-600">
             Forged in 5 Hours.
           </h2>
-          <p className="text-xl text-gray-400 max-w-lg leading-relaxed font-sans">
+          <p ref={manifestoRef} className="text-xl text-gray-400 max-w-lg leading-relaxed font-sans">
             INDU is not just a language; it is an experiment in autonomous compiler engineering.
             Four strike teams executed a relentless architecture build, leading to The Singularity.
           </p>
