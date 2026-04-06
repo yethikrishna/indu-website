@@ -18,4 +18,4 @@ Examples of behavior that contributes to a positive environment for our communit
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement at codeofconduct@foundation.org.
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement at yethikrishnarcvn7a@gmail.com.
