@@ -3,6 +3,8 @@ import { Inter, Space_Mono } from "next/font/google";
 import "./globals.css";
 import Cursor from "@/components/Cursor";
 import Nav from "@/components/Nav";
+import { GhostDOMProvider } from "@/components/GhostDOM";
+import { GSAPRegistry } from "@/components/GSAPRegistry";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -30,9 +32,12 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${spaceMono.variable} bg-black`}>
       <body className="antialiased bg-black text-gray-100 min-h-screen cursor-none">
-        <Cursor />
-        <Nav />
-        {children}
+        <GhostDOMProvider>
+          <GSAPRegistry />
+          <Cursor />
+          <Nav />
+          {children}
+        </GhostDOMProvider>
       </body>
     </html>
   );
