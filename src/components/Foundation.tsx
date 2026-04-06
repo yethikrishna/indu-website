@@ -31,14 +31,15 @@ export default function Foundation() {
     });
 
     const lines = gsap.utils.toArray(".timeline-line");
-    lines.forEach((line: any) => {
-      gsap.fromTo(line, 
+    lines.forEach((line: unknown) => {
+      const element = line as HTMLElement;
+      gsap.fromTo(element, 
         { scaleY: 0 },
         {
           scaleY: 1,
           ease: "none",
           scrollTrigger: {
-            trigger: line.parentElement,
+            trigger: element.parentElement,
             start: "top center",
             end: "bottom center",
             scrub: true
@@ -47,15 +48,16 @@ export default function Foundation() {
       );
     });
 
-    gsap.utils.toArray(".phase-content").forEach((el: any) => {
-      gsap.fromTo(el,
+    gsap.utils.toArray(".phase-content").forEach((el: unknown) => {
+      const element = el as HTMLElement;
+      gsap.fromTo(element,
         { opacity: 0, x: 50 },
         {
           opacity: 1,
           x: 0,
           duration: 0.8,
           scrollTrigger: {
-            trigger: el,
+            trigger: element,
             start: "top 70%",
             toggleActions: "play none none reverse"
           }

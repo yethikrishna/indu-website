@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { Draggable } from "gsap/Draggable";
@@ -20,7 +20,7 @@ export default function CommunityPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
 
-  useGSAP((context, contextSafe) => {
+  useGSAP(() => {
     if (!trackRef.current) return;
 
     const cards = gsap.utils.toArray(".community-card") as HTMLElement[];

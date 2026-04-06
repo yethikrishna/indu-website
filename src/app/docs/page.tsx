@@ -77,11 +77,11 @@ export default function DocsPage() {
                   {s.content}
                 </p>
                 <div className="mt-8 bg-[#111] border border-gray-800 p-6 rounded-lg font-mono text-sm text-gray-300">
-                  <span className="text-green-400">// Example Snippet</span>
+                  <span className="text-green-400">{`// Example Snippet`}</span>
                   <br/>
                   <span className="text-purple-400">pub fn</span> execute() {'{'}
                   <br/>
-                  &nbsp;&nbsp;println("Initializing {s.title}...");
+                  &nbsp;&nbsp;println(&quot;Initializing {s.title}...&quot;);
                   <br/>
                   {'}'}
                 </div>
