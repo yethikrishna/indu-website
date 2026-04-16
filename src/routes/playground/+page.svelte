@@ -24,12 +24,13 @@
 
     try {
       // Dynamically import Monaco Editor
-      const monacoModule = await import('monaco-editor');
+      const monacoModule = await import('monaco-editor/esm/vs/editor/editor.api');
       Monaco = monacoModule;
 
       // Register INDU Language
+      const langConfig = induLanguage.loader();
       Monaco.languages.register({ id: 'indu' });
-      Monaco.languages.setMonarchTokensProvider('indu', induLanguage.loader().tokenizer);
+      Monaco.languages.setMonarchTokensProvider('indu', langConfig);
       
       // Register Theme
       Monaco.editor.defineTheme('indu-theme', induTheme);
