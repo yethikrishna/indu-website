@@ -25,9 +25,9 @@
 
       // Configure marked for custom IDs and syntax highlighting
       const renderer = new marked.Renderer();
-      renderer.heading = function(text, level, raw) {
-        const id = raw.toLowerCase().replace(/[^\w]+/g, '-');
-        return `<h${level} id="${id}">${text}</h${level}>\n`;
+      renderer.heading = function({text, depth}) {
+        const id = text.toLowerCase().replace(/[^\w]+/g, '-');
+        return `<h${depth} id="${id}">${text}</h${depth}>\n`;
       };
 
       marked.setOptions({
