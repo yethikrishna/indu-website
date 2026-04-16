@@ -300,6 +300,19 @@
     const onScroll = () => { scrollY = window.scrollY; };
     window.addEventListener('scroll', onScroll, { passive: true });
 
+    // Mouse Parallax
+    let targetMouseX = 0;
+    let targetMouseY = 0;
+    let currentMouseX = 0;
+    let currentMouseY = 0;
+    
+    const onMouseMove = (e: MouseEvent) => {
+      // Normalize mouse coordinates to -1 to 1
+      targetMouseX = (e.clientX / window.innerWidth) * 2 - 1;
+      targetMouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+    };
+    window.addEventListener('mousemove', onMouseMove, { passive: true });
+
     let t = 0;
     const clock = new THREE.Clock();
 
@@ -316,8 +329,16 @@
       if (!threeReady || !isVisible) return;
 
       const delta = clock.getDelta();
-      t += delta * 0.5;
+      t += delta * 0.5; // Use delta time for consistent speed across frame rates
 
+      // Smooth mouse interpolation
+      currentMouseX += (targetMouseX - currentMouseX) * delta * 5;
+      currentMouseY += (targetMouseY - currentMouseY) * delta * 5;
+
+      // Apply parallax to camera position
+      camera.position.x = currentMouseX * 0.8;
+      camera.position.y = currentMouseY * 0.8;
+      camera.lookAt(scene.position);
       material.uniforms.uTime.value = t;
       mesh.rotation.y = t * 0.15 + scrollY * 0.0005;
       mesh.rotation.x = Math.sin(t * 0.2) * 0.2 + scrollY * 0.0003;
@@ -335,6 +356,7 @@
     window.addEventListener('resize', onResize);
 
     return () => {
+      window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onResize);
       observer.disconnect();
@@ -819,7 +841,7 @@
     color: var(--text); margin-bottom: 8px;
   }
   .feature-desc { color: var(--text-muted); font-size: 0.875rem; line-height: 1.6; }
-  .feature-desc code {
+  :global(.feature-desc code) {
     font-family: var(--font-mono); color: var(--gold);
     background: rgba(232,168,56,0.1); padding: 1px 5px; border-radius: 3px;
     font-size: 0.9em;
@@ -928,14 +950,6 @@
   }
 
   @media (max-width: 768px) {
-    .nav-links { display: none; }
-    .nav-links.open {
-      display: flex; flex-direction: column;
-      position: fixed; top: 72px; left: 0; right: 0;
-      background: rgba(13,13,26,0.98); padding: 24px;
-      gap: 20px; border-bottom: 1px solid var(--border);
-    }
-    .hamburger { display: flex; }
     .hero-headline { font-size: clamp(2.5rem, 12vw, 4rem); }
     .hero-ctas { flex-direction: column; align-items: center; }
     .problems-grid { grid-template-columns: 1fr; }

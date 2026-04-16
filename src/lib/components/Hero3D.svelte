@@ -130,9 +130,31 @@
       const onScroll = () => { scrollY = window.scrollY; };
       window.addEventListener('scroll', onScroll, { passive: true });
 
+      // Mouse Parallax
+      let targetMouseX = 0;
+      let targetMouseY = 0;
+      let currentMouseX = 0;
+      let currentMouseY = 0;
+
+      const onMouseMove = (e: MouseEvent) => {
+        targetMouseX = (e.clientX / window.innerWidth) * 2 - 1;
+        targetMouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+      };
+      window.addEventListener('mousemove', onMouseMove, { passive: true });
+
       const tick = () => {
         animId = requestAnimationFrame(tick);
         time += 0.007;
+        
+        // Smooth mouse interpolation
+        currentMouseX += (targetMouseX - currentMouseX) * 0.05;
+        currentMouseY += (targetMouseY - currentMouseY) * 0.05;
+
+        // Apply parallax to camera position
+        camera.position.x = currentMouseX * 0.8;
+        camera.position.y = currentMouseY * 0.8;
+        camera.lookAt(scene.position);
+
         mat.uniforms.uTime.value = time;
         mesh.rotation.y = time * 0.12 + scrollY * 0.0004;
         mesh.rotation.x = Math.sin(time * 0.18) * 0.18 + scrollY * 0.0002;
@@ -144,6 +166,7 @@
       cleanup = () => {
         ro.disconnect();
         window.removeEventListener('scroll', onScroll);
+        window.removeEventListener('mousemove', onMouseMove);
       };
     })();
 

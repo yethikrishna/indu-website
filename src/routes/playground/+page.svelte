@@ -7,7 +7,7 @@
   import { runMockInterpreter } from '$lib/playground/mock-interpreter';
 
   let Monaco: any = null;
-  let editor: any = null;
+  let editor: any = $state(null);
   let editorContainer: HTMLElement;
   let outputContainer: HTMLElement;
 
@@ -18,62 +18,73 @@
   let hasError = $state(false);
   let shareTooltip = $state(false);
 
+  // Initialize Monaco Editor
+  onMount(() => {
+    if (!browser) return;
+
+    (async () => {
+      try {
+        // Dynamically import Monaco Editor
+        // @ts-ignore
+        const monacoModule = await import('monaco-editor');
+        Monaco = monacoModule;
+
+        // Register INDU Language
+        const langConfig = induLanguage.loader();
+        Monaco.languages.register({ id: 'indu' });
+        Monaco.languages.setMonarchTokensProvider('indu', langConfig);
+        
+        // Register Theme
+        Monaco.editor.defineTheme('indu-theme', induTheme);
+
+        // Create Editor
+        editor = Monaco.editor.create(editorContainer, {
+          value: currentCode,
+          language: 'indu',
+          theme: 'indu-theme',
+          automaticLayout: true,
+          minimap: { enabled: false },
+          fontSize: 14,
+          fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+          lineHeight: 22,
+          padding: { top: 16, bottom: 16 },
+          scrollBeyondLastLine: false,
+          roundedSelection: false,
+          renderLineHighlight: 'all',
+          hideCursorInOverviewRuler: true,
+          overviewRulerBorder: false,
+        });
+
+        // Handle editor changes
+        editor.onDidChangeModelContent(() => {
+          currentCode = editor.getValue();
+        });
+
+        // Check URL for shared code
+        const urlParams = new URLSearchParams(window.location.search);
+        const codeParam = urlParams.get('code');
+        if (codeParam) {
+          try {
+            // FIX #4 (decode side): Handle Unicode correctly when decoding shared URLs
+            const decoded = decodeURIComponent(escape(atob(codeParam)));
+            currentCode = decoded;
+            currentExampleId = 'custom';
+            editor.setValue(decoded);
+          } catch (e) {
+            console.error("Failed to decode shared code");
+          }
+        }
+
+      } catch (e) {
+        console.error("Failed to load Monaco Editor", e);
+      }
+    })();
+  });
+
   // FIX #3: Move editor.dispose() to onDestroy — the async onMount return never reliably fires
   onDestroy(() => {
     if (editor) {
       editor.dispose();
-    }
-  });
-
-  onMount(async () => {
-    if (!browser) return;
-
-    try {
-      const monacoModule = await import('monaco-editor/esm/vs/editor/editor.api');
-      Monaco = monacoModule;
-
-      const langConfig = induLanguage.loader();
-      Monaco.languages.register({ id: 'indu' });
-      Monaco.languages.setMonarchTokensProvider('indu', langConfig);
-
-      Monaco.editor.defineTheme('indu-theme', induTheme);
-
-      editor = Monaco.editor.create(editorContainer, {
-        value: currentCode,
-        language: 'indu',
-        theme: 'indu-theme',
-        automaticLayout: true,
-        minimap: { enabled: false },
-        fontSize: 14,
-        fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-        lineHeight: 22,
-        padding: { top: 16, bottom: 16 },
-        scrollBeyondLastLine: false,
-        roundedSelection: false,
-        renderLineHighlight: 'all',
-        hideCursorInOverviewRuler: true,
-        overviewRulerBorder: false
-      });
-
-      editor.onDidChangeModelContent(() => {
-        currentCode = editor.getValue();
-      });
-
-      const urlParams = new URLSearchParams(window.location.search);
-      const codeParam = urlParams.get('code');
-      if (codeParam) {
-        try {
-          // FIX #4 (decode side): Handle Unicode correctly when decoding shared URLs
-          const decoded = decodeURIComponent(escape(atob(codeParam)));
-          currentCode = decoded;
-          currentExampleId = 'custom';
-          editor.setValue(decoded);
-        } catch (e) {
-          console.error('Failed to decode shared code', e);
-        }
-      }
-    } catch (e) {
-      console.error('Failed to load Monaco Editor', e);
     }
   });
 

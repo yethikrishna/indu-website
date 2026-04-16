@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
-  import { marked } from 'marked';
+  import { marked, type Tokens } from 'marked';
   import hljs from 'highlight.js';
   import 'highlight.js/styles/atom-one-dark.css';
 
@@ -16,7 +16,7 @@
       const tokens = marked.lexer(data.content);
       
       toc = tokens
-        .filter((t): t is marked.Tokens.Heading => t.type === 'heading')
+        .filter((t): t is Tokens.Heading => t.type === 'heading')
         .map(t => ({
           id: t.text.toLowerCase().replace(/[^\w]+/g, '-'),
           text: t.text,
@@ -29,17 +29,17 @@
         const id = text.toLowerCase().replace(/[^\w]+/g, '-');
         return `<h${depth} id="${id}">${text}</h${depth}>\n`;
       };
+      renderer.code = function({text, lang}) {
+        if (lang && hljs.getLanguage(lang)) {
+          try {
+            return `<pre><code class="hljs language-${lang}">${hljs.highlight(text, { language: lang }).value}</code></pre>`;
+          } catch (__) {}
+        }
+        return `<pre><code class="hljs">${text}</code></pre>`;
+      };
 
       marked.setOptions({
-        renderer,
-        highlight: function(code, lang) {
-          if (lang && hljs.getLanguage(lang)) {
-            try {
-              return hljs.highlight(code, { language: lang }).value;
-            } catch (__) {}
-          }
-          return code;
-        }
+        renderer
       });
 
       contentHtml = marked.parser(tokens);
@@ -60,7 +60,7 @@
 <div class="docs-layout">
   <!-- Mobile Header -->
   <div class="mobile-header">
-    <button class="menu-btn" on:click={toggleSidebar}>
+    <button class="menu-btn" on:click={toggleSidebar} aria-label="Toggle Sidebar">
       <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M3 12h18M3 6h18M3 18h18" />
       </svg>
