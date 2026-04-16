@@ -3,6 +3,7 @@ import type { PageServerLoad } from './$types';
 import { getDocsTree, getAllDocsFlat } from '$lib/docs/api';
 import fs from 'fs';
 import path from 'path';
+import matter from 'gray-matter';
 
 export const load: PageServerLoad = async ({ params }) => {
   const slug = params.slug;
@@ -13,6 +14,7 @@ export const load: PageServerLoad = async ({ params }) => {
   }
 
   const fileContent = fs.readFileSync(filePath, 'utf-8');
+  const { data, content } = matter(fileContent);
   const tree = getDocsTree();
   const flatDocs = getAllDocsFlat();
   
@@ -23,7 +25,9 @@ export const load: PageServerLoad = async ({ params }) => {
 
   return {
     slug,
-    content: fileContent,
+    title: data.title,
+    description: data.description,
+    content,
     tree,
     prev,
     next

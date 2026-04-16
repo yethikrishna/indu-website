@@ -9,6 +9,10 @@
     targetX: number; targetY: number;
   }
 
+  // ─── Content Data ─────────────────────────────────────────────────────────
+  const headline1 = 'One Language.'.split('');
+  const headline2 = 'Every Frontier.'.split('');
+
   // ─── Reactive State (Svelte 5 Runes) ─────────────────────────────────────
   let preloaderVisible = $state(true);
   let preloaderFading = $state(false);
@@ -29,10 +33,6 @@
   let threeRenderer: any = null;
   let animFrameId: number;
   let preloaderAnimId: number;
-
-  // ─── Content Data ─────────────────────────────────────────────────────────
-  const headline1 = 'One Language.'.split('');
-  const headline2 = 'Every Frontier.'.split('');
 
   const problems = [
     {
@@ -198,7 +198,7 @@
     const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
     camera.position.z = 6;
 
-    const renderer = new THREE.WebGLRenderer({ canvas: canvasEl, antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({ canvas: canvasEl, antialias: true, alpha: true, powerPreference: "high-performance" });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     threeRenderer = renderer;
@@ -278,7 +278,7 @@
       }
     `;
 
-    const geometry = new THREE.IcosahedronGeometry(2.2, 4);
+    const geometry = new THREE.IcosahedronGeometry(2.2, 3); // Reduced complexity from 4 to 3 for performance
     const material = new THREE.ShaderMaterial({
       vertexShader,
       fragmentShader,
@@ -293,7 +293,7 @@
     const wireMat = new THREE.MeshBasicMaterial({
       color: 0x4ECDC4, wireframe: true, transparent: true, opacity: 0.06
     });
-    const wireMesh = new THREE.Mesh(new THREE.IcosahedronGeometry(2.22, 2), wireMat);
+    const wireMesh = new THREE.Mesh(new THREE.IcosahedronGeometry(2.22, 1), wireMat); // Reduced complexity
     scene.add(wireMesh);
 
     // Scroll-linked rotation
@@ -302,9 +302,22 @@
     window.addEventListener('scroll', onScroll, { passive: true });
 
     let t = 0;
+    let clock = new THREE.Clock();
+    
+    // Use IntersectionObserver to pause rendering when offscreen
+    let isVisible = true;
+    const observer = new IntersectionObserver((entries) => {
+      isVisible = entries[0].isIntersecting;
+    });
+    if (canvasEl) observer.observe(canvasEl);
+
     function animate() {
       animFrameId = requestAnimationFrame(animate);
-      t += 0.008;
+      if (!isVisible) return; // Skip rendering when not visible
+      
+      const delta = clock.getDelta();
+      t += delta * 0.5; // Use delta time for consistent speed across frame rates
+      
       material.uniforms.uTime.value = t;
       mesh.rotation.y = t * 0.15 + scrollY * 0.0005;
       mesh.rotation.x = Math.sin(t * 0.2) * 0.2 + scrollY * 0.0003;
@@ -324,6 +337,11 @@
     return () => {
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onResize);
+      observer.disconnect();
+      renderer.dispose();
+      geometry.dispose();
+      material.dispose();
+      wireMat.dispose();
     };
   }
 
