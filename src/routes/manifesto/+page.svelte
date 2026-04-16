@@ -4,6 +4,8 @@
 
   let containerEl: HTMLElement;
   let animFrameId: number;
+  let resizeHandler: (() => void) | undefined;
+  let gsapCleanup: (() => void) | undefined;
 
   const pillars = [
     {
@@ -87,8 +89,7 @@ for x in 1..=5 {
   onMount(() => {
     if (!browser) return;
 
-    let cleanupGsap: (() => void) | undefined;
-
+    // ── GSAP Horizontal Scroll ────────────────────────────────────────────
     (async () => {
       try {
         const { gsap } = await import('gsap');
@@ -97,77 +98,84 @@ for x in 1..=5 {
 
         const ctx = gsap.context(() => {
           // Hero fade in
-          gsap.fromTo('.manifesto-hero h1', 
-            { opacity: 0, y: 50 }, 
+          gsap.fromTo('.manifesto-hero h1',
+            { opacity: 0, y: 50 },
             { opacity: 1, y: 0, duration: 1.2, ease: 'power3.out' }
           );
-          gsap.fromTo('.manifesto-hero p', 
-            { opacity: 0, y: 30 }, 
+          gsap.fromTo('.manifesto-hero p',
+            { opacity: 0, y: 30 },
             { opacity: 1, y: 0, duration: 1, delay: 0.3, ease: 'power3.out' }
           );
 
-          // Pinned scroll section
+          // Pinned horizontal scroll
           const panels = gsap.utils.toArray('.panel');
-          
-          // Pin the container and horizontal scroll the panels
-          gsap.to(panels, {
+
+          // FIX #1: Assign tween to a variable so containerAnimation can reference it directly
+          // FIX #7: Correct scroll distance — use window.innerWidth * (panels.length - 1)
+          const scrollTween = gsap.to(panels, {
             xPercent: -100 * (panels.length - 1),
-            ease: "none",
+            ease: 'none',
             scrollTrigger: {
-              trigger: ".manifesto-scroll-container",
+              trigger: '.manifesto-scroll-container',
               pin: true,
               scrub: 1,
               snap: 1 / (panels.length - 1),
-              end: () => "+=" + (containerEl.offsetWidth * panels.length)
+              end: () => '+=' + (window.innerWidth * (panels.length - 1))
             }
           });
 
-          // Animate content inside panels as they scroll
-          panels.forEach((panel: any, i) => {
-            gsap.fromTo(panel.querySelectorAll('.panel-content > *'),
+          // Animate content inside each panel — FIX: pass scrollTween directly, not gsap.getById
+          panels.forEach((panel: any) => {
+            gsap.fromTo(
+              panel.querySelectorAll('.panel-content > *'),
               { opacity: 0, y: 40 },
-              { 
-                opacity: 1, 
-                y: 0, 
+              {
+                opacity: 1,
+                y: 0,
                 duration: 0.8,
                 stagger: 0.15,
                 scrollTrigger: {
                   trigger: panel,
-                  containerAnimation: gsap.getById("scrollTween"), // Link to the horizontal scroll
-                  start: "left center",
-                  toggleActions: "play none none reverse"
+                  containerAnimation: scrollTween, // FIX: direct reference, not getById
+                  start: 'left center',
+                  toggleActions: 'play none none reverse'
                 }
               }
             );
           });
-          
-          // CTA Section
-          gsap.fromTo('.manifesto-cta .cta-inner',
+
+          // CTA section
+          gsap.fromTo(
+            '.manifesto-cta .cta-inner',
             { opacity: 0, scale: 0.95 },
             {
-              opacity: 1, scale: 1, duration: 0.8,
+              opacity: 1,
+              scale: 1,
+              duration: 0.8,
               scrollTrigger: { trigger: '.manifesto-cta', start: 'top 80%' }
             }
           );
         });
 
-        cleanupGsap = () => ctx.revert();
+        // FIX #2: Store cleanup reference for onDestroy (not in onMount return)
+        gsapCleanup = () => ctx.revert();
       } catch (e) {
-        console.error("GSAP failed to load", e);
+        console.error('GSAP failed to load', e);
       }
     })();
 
-    // Starfield background
+    // ── Starfield Canvas ──────────────────────────────────────────────────
     const canvas = document.getElementById('starfield') as HTMLCanvasElement;
     if (canvas) {
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        const resize = () => {
+        // FIX #6: Store resize handler reference so we can remove it in onDestroy
+        resizeHandler = () => {
           canvas.width = window.innerWidth;
           canvas.height = window.innerHeight;
         };
-        window.addEventListener('resize', resize);
-        resize();
+        window.addEventListener('resize', resizeHandler);
+        resizeHandler();
 
         const stars = Array.from({ length: 200 }, () => ({
           x: Math.random() * canvas.width,
@@ -180,14 +188,13 @@ for x in 1..=5 {
         const animate = () => {
           animFrameId = requestAnimationFrame(animate);
           ctx.clearRect(0, 0, canvas.width, canvas.height);
-          
+
           stars.forEach(star => {
             star.y -= star.speed;
             if (star.y < 0) {
               star.y = canvas.height;
               star.x = Math.random() * canvas.width;
             }
-            
             ctx.fillStyle = `rgba(248, 246, 240, ${star.opacity * 0.5})`;
             ctx.beginPath();
             ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
@@ -197,11 +204,13 @@ for x in 1..=5 {
         animate();
       }
     }
+  });
 
-    return () => {
-      if (cleanupGsap) cleanupGsap();
-      if (animFrameId) cancelAnimationFrame(animFrameId);
-    };
+  // FIX #2 + #6: All cleanup in onDestroy — guarantees it runs even on fast navigation
+  onDestroy(() => {
+    if (gsapCleanup) gsapCleanup();
+    if (animFrameId) cancelAnimationFrame(animFrameId);
+    if (resizeHandler) window.removeEventListener('resize', resizeHandler);
   });
 </script>
 
@@ -233,7 +242,6 @@ for x in 1..=5 {
             <div class="panel-content">
               <h2>{pillar.title}</h2>
               <p>{pillar.desc}</p>
-              
               <div class="compare-block">
                 <div class="compare-col before">
                   <div class="compare-label">The Old Way</div>
@@ -256,7 +264,6 @@ for x in 1..=5 {
       <div class="cta-inner">
         <h2>The frontier is open.</h2>
         <p>INDU is an open-source, community-driven language designed for the next generation of computing.</p>
-        
         <div class="cta-actions">
           <a href="https://github.com/indu-lang/indu" class="btn-primary" target="_blank" rel="noreferrer">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -288,266 +295,220 @@ for x in 1..=5 {
     pointer-events: none;
   }
 
-  /* ── Hero ────────────────────────────────────────────── */
   .manifesto-hero {
     position: relative;
     height: 100vh;
     display: flex;
     align-items: center;
     z-index: 1;
-    padding-top: 72px; /* Nav offset */
-  }
-
-  .manifesto-hero .container {
-    max-width: 1000px;
   }
 
   .manifesto-hero h1 {
     font-family: var(--font-display);
-    font-size: clamp(3rem, 7vw, 5.5rem);
-    font-weight: 800;
-    line-height: 1.05;
-    letter-spacing: -0.03em;
-    margin-bottom: 32px;
-    background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-muted) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    font-size: clamp(2rem, 5vw, 4rem);
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.5rem;
   }
 
   .manifesto-hero p {
-    font-size: clamp(1.2rem, 2.5vw, 1.5rem);
+    font-size: clamp(1rem, 2vw, 1.2rem);
     color: var(--text-secondary);
-    max-width: 800px;
-    line-height: 1.6;
+    max-width: 600px;
+    line-height: 1.7;
   }
 
   .scroll-indicator {
-    position: absolute;
-    bottom: 60px;
-    left: var(--sp-6);
     display: flex;
     align-items: center;
     gap: 16px;
-    font-family: var(--font-mono);
-    font-size: 0.8rem;
-    color: var(--color-accent);
+    margin-top: 3rem;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
-    letter-spacing: 0.15em;
   }
 
   .scroll-line {
-    width: 60px;
+    flex: 1;
+    max-width: 80px;
     height: 1px;
-    background-color: var(--color-accent);
-    transform-origin: left;
-    animation: scaleLine 2s ease-in-out infinite;
+    background: linear-gradient(90deg, var(--color-accent), transparent);
   }
 
-  @keyframes scaleLine {
-    0% { transform: scaleX(0); opacity: 0; }
-    50% { transform: scaleX(1); opacity: 1; }
-    100% { transform: scaleX(0); opacity: 0; transform-origin: right; }
-  }
-
-  /* ── Scroll Section ──────────────────────────────────── */
+  /* ── Scroll Container ─────────────────────────────────── */
   .manifesto-scroll-container {
-    width: 100%;
-    height: 100vh;
-    overflow: hidden;
     position: relative;
-    z-index: 2;
-    background-color: var(--bg-surface);
+    z-index: 1;
+    overflow: hidden;
   }
 
   .panels-wrapper {
     display: flex;
-    width: 500%; /* 5 panels */
-    height: 100%;
+    width: 500vw;
+    will-change: transform;
   }
 
   .panel {
     width: 100vw;
-    height: 100%;
+    height: 100vh;
     display: flex;
     align-items: center;
-    position: relative;
+    flex-shrink: 0;
   }
 
   .panel-inner {
-    display: flex;
-    align-items: flex-start;
-    gap: 80px;
-    width: 100%;
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 48px;
+    align-items: start;
   }
 
   .panel-number {
+    font-family: var(--font-mono);
+    font-size: 4rem;
+    font-weight: 700;
+    color: var(--color-accent);
+    opacity: 0.3;
+    line-height: 1;
+  }
+
+  .panel-content h2 {
     font-family: var(--font-display);
-    font-size: 12rem;
-    font-weight: 800;
-    line-height: 0.8;
-    color: rgba(255, 255, 255, 0.03);
-    user-select: none;
+    font-size: clamp(1.8rem, 3.5vw, 3rem);
+    font-weight: 700;
+    margin-bottom: 1rem;
   }
 
-  .panel-content {
-    flex: 1;
-    max-width: 700px;
-  }
-
-  .panel h2 {
-    font-family: var(--font-display);
-    font-size: clamp(2.5rem, 5vw, 4rem);
-    color: var(--color-secondary);
-    margin-bottom: 24px;
-    line-height: 1.1;
-  }
-
-  .panel p {
-    font-size: 1.25rem;
+  .panel-content > p {
+    font-size: 1.1rem;
     color: var(--text-secondary);
-    margin-bottom: 48px;
-    line-height: 1.6;
+    max-width: 520px;
+    line-height: 1.7;
+    margin-bottom: 2rem;
   }
 
-  /* ── Compare Block ───────────────────────────────────── */
+  /* ── Compare Block ────────────────────────────────────── */
   .compare-block {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 24px;
+    gap: 20px;
   }
 
   .compare-col {
-    background: #0D0D1A;
-    border: 1px solid var(--border-default);
-    border-radius: 12px;
+    border-radius: 8px;
     overflow: hidden;
   }
 
-  .compare-col.before {
-    border-color: rgba(255, 107, 107, 0.2);
-  }
-
-  .compare-col.after {
-    border-color: rgba(78, 205, 196, 0.3);
-  }
-
   .compare-label {
-    padding: 12px 16px;
-    font-family: var(--font-mono);
+    padding: 8px 16px;
     font-size: 0.75rem;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    border-bottom: 1px solid var(--border-default);
   }
 
-  .before .compare-label {
-    color: #FF6B6B;
-    background: rgba(255, 107, 107, 0.05);
+  .compare-col.before .compare-label {
+    background-color: rgba(255, 59, 59, 0.1);
+    color: #ff6b6b;
+    border-bottom: 1px solid rgba(255, 59, 59, 0.2);
   }
 
-  .after .compare-label {
-    color: var(--color-accent);
-    background: rgba(78, 205, 196, 0.05);
+  .compare-col.after .compare-label {
+    background-color: rgba(78, 205, 196, 0.1);
+    color: var(--color-tertiary);
+    border-bottom: 1px solid rgba(78, 205, 196, 0.2);
   }
 
   .compare-col pre {
     margin: 0;
-    padding: 20px;
-    background: transparent;
-    border: none;
-    font-size: 0.85rem;
-    color: var(--text-secondary);
+    padding: 16px;
+    background-color: var(--bg-surface);
     overflow-x: auto;
   }
 
-  /* ── CTA Section ─────────────────────────────────────── */
+  .compare-col code {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+  }
+
+  .compare-col.after code {
+    color: var(--text-primary);
+  }
+
+  /* ── CTA ──────────────────────────────────────────────── */
   .manifesto-cta {
     position: relative;
-    z-index: 2;
-    padding: 160px 0;
-    background: var(--bg-base);
+    z-index: 1;
+    padding: 120px 0;
     text-align: center;
   }
 
-  .cta-inner {
-    max-width: 600px;
-    margin: 0 auto;
-    padding: 64px 40px;
-    background: var(--bg-surface);
-    border: 1px solid var(--border-default);
-    border-radius: 24px;
-    box-shadow: var(--shadow-xl);
+  .cta-inner h2 {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 4vw, 3.5rem);
+    font-weight: 700;
+    margin-bottom: 1rem;
   }
 
-  .manifesto-cta h2 {
-    font-size: 3rem;
-    margin-bottom: 16px;
-  }
-
-  .manifesto-cta p {
+  .cta-inner > p {
     font-size: 1.1rem;
-    color: var(--text-muted);
-    margin-bottom: 40px;
+    color: var(--text-secondary);
+    max-width: 500px;
+    margin: 0 auto 2.5rem;
+    line-height: 1.7;
   }
 
   .cta-actions {
     display: flex;
-    justify-content: center;
     gap: 16px;
-  }
-
-  .btn-primary, .btn-secondary {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    padding: 14px 28px;
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: 1rem;
-    border-radius: 8px;
-    text-decoration: none;
-    transition: all 0.2s;
+    justify-content: center;
+    flex-wrap: wrap;
   }
 
   .btn-primary {
-    background: var(--color-secondary);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 28px;
+    background-color: var(--color-accent);
     color: var(--bg-base);
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+    transition: all 0.2s ease;
   }
 
   .btn-primary:hover {
+    background-color: var(--color-secondary);
     transform: translateY(-2px);
-    box-shadow: 0 12px 24px rgba(232, 168, 56, 0.25);
   }
 
   .btn-secondary {
-    background: transparent;
-    color: var(--text-primary);
+    display: inline-flex;
+    align-items: center;
+    padding: 14px 28px;
     border: 1px solid var(--border-default);
+    color: var(--text-primary);
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+    transition: all 0.2s ease;
   }
 
   .btn-secondary:hover {
-    background: rgba(255, 255, 255, 0.05);
     border-color: var(--color-accent);
+    color: var(--color-accent);
   }
 
-  /* ── Responsive ──────────────────────────────────────── */
-  @media (max-width: 960px) {
-    .panel-inner {
-      flex-direction: column;
-      gap: 32px;
-    }
-
-    .panel-number {
-      font-size: 6rem;
-      line-height: 1;
-    }
-
-    .compare-block {
-      grid-template-columns: 1fr;
-    }
-    
-    .cta-actions {
-      flex-direction: column;
-    }
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 48px;
   }
 </style>

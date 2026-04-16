@@ -10,7 +10,7 @@
   let editor: any = null;
   let editorContainer: HTMLElement;
   let outputContainer: HTMLElement;
-  
+
   let currentExampleId = $state('hello-world');
   let currentCode = $state(examples[0].code);
   let isRunning = $state(false);
@@ -18,24 +18,26 @@
   let hasError = $state(false);
   let shareTooltip = $state(false);
 
-  // Initialize Monaco Editor
+  // FIX #3: Move editor.dispose() to onDestroy — the async onMount return never reliably fires
+  onDestroy(() => {
+    if (editor) {
+      editor.dispose();
+    }
+  });
+
   onMount(async () => {
     if (!browser) return;
 
     try {
-      // Dynamically import Monaco Editor
       const monacoModule = await import('monaco-editor/esm/vs/editor/editor.api');
       Monaco = monacoModule;
 
-      // Register INDU Language
       const langConfig = induLanguage.loader();
       Monaco.languages.register({ id: 'indu' });
       Monaco.languages.setMonarchTokensProvider('indu', langConfig);
-      
-      // Register Theme
+
       Monaco.editor.defineTheme('indu-theme', induTheme);
 
-      // Create Editor
       editor = Monaco.editor.create(editorContainer, {
         value: currentCode,
         language: 'indu',
@@ -50,37 +52,29 @@
         roundedSelection: false,
         renderLineHighlight: 'all',
         hideCursorInOverviewRuler: true,
-        overviewRulerBorder: false,
+        overviewRulerBorder: false
       });
 
-      // Handle editor changes
       editor.onDidChangeModelContent(() => {
         currentCode = editor.getValue();
       });
 
-      // Check URL for shared code
       const urlParams = new URLSearchParams(window.location.search);
       const codeParam = urlParams.get('code');
       if (codeParam) {
         try {
-          const decoded = atob(codeParam);
+          // FIX #4 (decode side): Handle Unicode correctly when decoding shared URLs
+          const decoded = decodeURIComponent(escape(atob(codeParam)));
           currentCode = decoded;
           currentExampleId = 'custom';
           editor.setValue(decoded);
         } catch (e) {
-          console.error("Failed to decode shared code");
+          console.error('Failed to decode shared code', e);
         }
       }
-
     } catch (e) {
-      console.error("Failed to load Monaco Editor", e);
+      console.error('Failed to load Monaco Editor', e);
     }
-
-    return () => {
-      if (editor) {
-        editor.dispose();
-      }
-    };
   });
 
   function loadExample(id: string) {
@@ -95,43 +89,53 @@
 
   async function handleRun() {
     if (isRunning) return;
-    
+
     isRunning = true;
     outputLines = ['Compiling...'];
     hasError = false;
-    
-    // Simulate compilation delay
+
     await new Promise(resolve => setTimeout(resolve, 600));
-    
+
     const result = runMockInterpreter(currentCode);
-    
     outputLines = [];
-    
-    // Animate output lines for realism
+
     for (let i = 0; i < result.output.length; i++) {
       outputLines = [...outputLines, result.output[i]];
       await new Promise(resolve => setTimeout(resolve, Math.random() * 150 + 50));
-      
       if (outputContainer) {
         outputContainer.scrollTop = outputContainer.scrollHeight;
       }
     }
-    
+
     hasError = result.error;
     isRunning = false;
   }
 
-  function handleShare() {
-    const encoded = btoa(currentCode);
+  async function handleShare() {
+    // FIX #4: Encode Unicode-safe before btoa — plain btoa throws on non-ASCII chars
+    const encoded = btoa(unescape(encodeURIComponent(currentCode)));
     const url = new URL(window.location.href);
     url.searchParams.set('code', encoded);
-    
-    navigator.clipboard.writeText(url.toString());
-    
-    shareTooltip = true;
-    setTimeout(() => {
-      shareTooltip = false;
-    }, 2000);
+
+    // FIX #5: Await clipboard and handle failure — don't show success toast on error
+    try {
+      await navigator.clipboard.writeText(url.toString());
+      shareTooltip = true;
+      setTimeout(() => {
+        shareTooltip = false;
+      }, 2000);
+    } catch (e) {
+      console.error('Clipboard write failed', e);
+      // Fallback: select a temporary input so user can copy manually
+      const input = document.createElement('input');
+      input.value = url.toString();
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+      shareTooltip = true;
+      setTimeout(() => { shareTooltip = false; }, 2000);
+    }
   }
 </script>
 
@@ -141,7 +145,6 @@
 </svelte:head>
 
 <div class="playground-layout">
-  <!-- Sidebar: Examples -->
   <aside class="sidebar">
     <div class="sidebar-header">
       <h3>Examples</h3>
@@ -149,8 +152,8 @@
     </div>
     <div class="example-list">
       {#each examples as example}
-        <button 
-          class="example-btn" 
+        <button
+          class="example-btn"
           class:active={currentExampleId === example.id}
           onclick={() => loadExample(example.id)}
         >
@@ -161,7 +164,6 @@
         <button class="example-btn active">Custom Code</button>
       {/if}
     </div>
-    
     <div class="sidebar-footer">
       <a href="/docs" class="docs-link">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
@@ -172,14 +174,12 @@
     </div>
   </aside>
 
-  <!-- Main Content: Editor & Output -->
   <main class="main-content">
     <header class="toolbar">
       <div class="toolbar-title">
         <span class="file-icon">INDU</span>
         main.indu
       </div>
-      
       <div class="toolbar-actions">
         <div class="share-wrapper">
           <button class="btn-icon" onclick={handleShare} aria-label="Share code">
@@ -192,7 +192,6 @@
             <div class="tooltip">Copied to clipboard!</div>
           {/if}
         </div>
-        
         <button class="btn-run" onclick={handleRun} disabled={isRunning}>
           {#if isRunning}
             <span class="spinner"></span>
@@ -235,20 +234,19 @@
 <style>
   :global(body) {
     margin: 0;
-    overflow: hidden; /* Prevent scrolling on the playground layout */
+    overflow: hidden;
   }
 
   .playground-layout {
     display: flex;
     height: 100vh;
     width: 100vw;
-    padding-top: 72px; /* Account for global Nav */
+    padding-top: 72px;
     background-color: var(--bg-base);
     color: var(--text-primary);
     font-family: var(--font-body);
   }
 
-  /* ── Sidebar ────────────────────────────────────────── */
   .sidebar {
     width: 260px;
     background-color: var(--bg-surface);
@@ -328,12 +326,11 @@
     color: var(--color-accent);
   }
 
-  /* ── Main Content ────────────────────────────────────── */
   .main-content {
     flex: 1;
     display: flex;
     flex-direction: column;
-    min-width: 0; /* Prevent flexbox overflow */
+    min-width: 0;
   }
 
   .toolbar {
@@ -375,6 +372,21 @@
     position: relative;
   }
 
+  .tooltip {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    color: var(--text-primary);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
   .btn-icon {
     display: flex;
     align-items: center;
@@ -384,59 +396,33 @@
     color: var(--text-secondary);
     padding: 6px 12px;
     border-radius: 6px;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
+    cursor: pointer;
     transition: all 0.2s;
   }
 
   .btn-icon:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-    color: var(--text-primary);
-  }
-
-  .tooltip {
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    margin-top: 8px;
-    background-color: var(--color-accent);
-    color: var(--bg-base);
-    font-size: 0.75rem;
-    padding: 4px 8px;
-    border-radius: 4px;
-    white-space: nowrap;
-    z-index: 10;
-  }
-
-  .tooltip::before {
-    content: '';
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    border-width: 4px;
-    border-style: solid;
-    border-color: transparent transparent var(--color-accent) transparent;
+    border-color: var(--color-accent);
+    color: var(--color-accent);
   }
 
   .btn-run {
     display: flex;
     align-items: center;
-    gap: 6px;
-    background-color: var(--color-secondary);
+    gap: 8px;
+    background-color: var(--color-accent);
     color: var(--bg-base);
     border: none;
-    padding: 6px 16px;
+    padding: 8px 20px;
     border-radius: 6px;
-    font-family: var(--font-display);
+    font-size: 0.9rem;
     font-weight: 600;
-    font-size: 0.85rem;
-    transition: opacity 0.2s, transform 0.1s;
+    cursor: pointer;
+    transition: all 0.2s;
   }
 
   .btn-run:hover:not(:disabled) {
-    opacity: 0.9;
-    transform: translateY(-1px);
+    background-color: var(--color-secondary);
   }
 
   .btn-run:disabled {
@@ -447,21 +433,20 @@
   .spinner {
     width: 12px;
     height: 12px;
-    border: 2px solid rgba(0,0,0,0.2);
+    border: 2px solid rgba(0, 0, 0, 0.3);
     border-top-color: var(--bg-base);
     border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+    animation: spin 0.6s linear infinite;
   }
 
   @keyframes spin {
     to { transform: rotate(360deg); }
   }
 
-  /* ── Editor & Output Panes ───────────────────────────── */
   .editor-pane {
-    flex: 2;
+    flex: 1;
     position: relative;
-    background-color: #12121F;
+    overflow: hidden;
   }
 
   .monaco-container {
@@ -480,37 +465,33 @@
   }
 
   .output-pane {
-    flex: 1;
-    min-height: 200px;
-    background-color: #0D0D1A;
+    height: 200px;
     border-top: 1px solid var(--border-default);
     display: flex;
     flex-direction: column;
   }
 
   .output-header {
-    padding: 8px 20px;
-    font-family: var(--font-mono);
+    padding: 8px 16px;
     font-size: 0.75rem;
-    color: var(--text-muted);
-    background-color: rgba(255, 255, 255, 0.02);
-    border-bottom: 1px solid var(--border-default);
     text-transform: uppercase;
     letter-spacing: 0.1em;
+    color: var(--text-muted);
+    background-color: var(--bg-surface);
+    border-bottom: 1px solid var(--border-default);
   }
 
   .output-content {
     flex: 1;
-    padding: 16px 20px;
     overflow-y: auto;
+    padding: 12px 16px;
     font-family: var(--font-mono);
     font-size: 0.85rem;
     line-height: 1.6;
-    color: var(--text-secondary);
   }
 
-  .output-content.error {
-    color: #FF6B6B;
+  .output-content.error .output-line:last-of-type {
+    color: #ff6b6b;
   }
 
   .output-empty {
@@ -519,59 +500,17 @@
   }
 
   .output-line {
-    white-space: pre-wrap;
-    word-break: break-all;
+    color: var(--text-primary);
   }
 
   .output-cursor {
     display: inline-block;
-    width: 8px;
     animation: blink 1s step-end infinite;
-    color: var(--color-secondary);
+    color: var(--color-accent);
   }
 
   @keyframes blink {
     0%, 100% { opacity: 1; }
     50% { opacity: 0; }
-  }
-
-  /* ── Responsive ──────────────────────────────────────── */
-  @media (max-width: 768px) {
-    .playground-layout {
-      flex-direction: column;
-    }
-
-    .sidebar {
-      width: 100%;
-      height: auto;
-      border-right: none;
-      border-bottom: 1px solid var(--border-default);
-    }
-
-    .example-list {
-      flex-direction: row;
-      overflow-x: auto;
-      padding: 12px 20px;
-    }
-
-    .example-btn {
-      white-space: nowrap;
-    }
-
-    .sidebar-header, .sidebar-footer {
-      display: none;
-    }
-
-    .main-content {
-      flex: 1;
-    }
-
-    .editor-pane {
-      flex: 1;
-    }
-
-    .output-pane {
-      flex: 1;
-    }
   }
 </style>
