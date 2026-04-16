@@ -34,6 +34,9 @@
   let animFrameId: number;
   let preloaderAnimId: number;
 
+  // FIX #8: Gate flag — Three.js rAF only runs after preloader finishes
+  let threeReady = false;
+
   const problems = [
     {
       year: '2020',
@@ -68,14 +71,14 @@
   ];
 
   const features = [
-    { icon: '⚡', title: 'Fluid Typing', desc: 'Python ergonomics for prototyping, Rust precision for production. One language, two modes.' },
-    { icon: '🤖', title: 'Native Agents', desc: '`agent` is a keyword. Fault-tolerant, message-passing actors. No LangChain required.' },
-    { icon: '🔮', title: 'WebGPU Rendering', desc: 'Bypass the DOM. Paint at game-engine speed. WebGPU canvas is a first-class primitive.' },
-    { icon: '🌐', title: 'Sync CRDT', desc: '`sync let x = 0` — INDU handles SQLite persistence and WebRTC sync automatically.' },
-    { icon: '🛡️', title: 'ARC Memory', desc: 'Deterministic reference counting. Zero GC pauses. No borrow checker battles.' },
-    { icon: '🚫', title: 'Zero-Null Safety', desc: '`null` does not exist in INDU. `Option<T>` and `Result<T,E>` are the only paths.' },
-    { icon: '⏱️', title: 'Comptime', desc: 'Zig-inspired compile-time execution. Optimize away runtime overhead before shipping.' },
-    { icon: '🧠', title: 'NEXUS Engine', desc: 'Load ONNX/PyTorch models. Run on NPU/GPU via SIMD abstractions. No Python required.' }
+    { icon: '\u26A1', title: 'Fluid Typing', desc: 'Python ergonomics for prototyping, Rust precision for production. One language, two modes.' },
+    { icon: '\uD83E\uDD16', title: 'Native Agents', desc: '`agent` is a keyword. Fault-tolerant, message-passing actors. No LangChain required.' },
+    { icon: '\uD83D\uDD2E', title: 'WebGPU Rendering', desc: 'Bypass the DOM. Paint at game-engine speed. WebGPU canvas is a first-class primitive.' },
+    { icon: '\uD83C\uDF10', title: 'Sync CRDT', desc: '`sync let x = 0` \u2014 INDU handles SQLite persistence and WebRTC sync automatically.' },
+    { icon: '\uD83D\uDEE1\uFE0F', title: 'ARC Memory', desc: 'Deterministic reference counting. Zero GC pauses. No borrow checker battles.' },
+    { icon: '\uD83D\uDEAB', title: 'Zero-Null Safety', desc: '`null` does not exist in INDU. `Option<T>` and `Result<T,E>` are the only paths.' },
+    { icon: '\u23F1\uFE0F', title: 'Comptime', desc: 'Zig-inspired compile-time execution. Optimize away runtime overhead before shipping.' },
+    { icon: '\uD83E\uDDE0', title: 'NEXUS Engine', desc: 'Load ONNX/PyTorch models. Run on NPU/GPU via SIMD abstractions. No Python required.' }
   ];
 
   const stats = [
@@ -88,12 +91,12 @@
     {
       title: 'State Management',
       before: { lang: 'Redux', lines: 80, code: `// actions.js\nexport const INCREMENT = 'INCREMENT';\nexport const DECREMENT = 'DECREMENT';\nexport const SET_VALUE = 'SET_VALUE';\n\nexport const increment = () => ({type: INCREMENT});\nexport const decrement = () => ({type: DECREMENT});\nexport const setValue = (v) => ({type: SET_VALUE, payload: v});\n\n// reducer.js\nconst initialState = { count: 0, loading: false };\nexport function counterReducer(state = initialState, action) {\n  switch (action.type) {\n    case INCREMENT: return {...state, count: state.count + 1};\n    case DECREMENT: return {...state, count: state.count - 1};\n    case SET_VALUE: return {...state, count: action.payload};\n    default: return state;\n  }\n}\n\n// selectors.js\nexport const selectCount = (state) => state.counter.count;\n\n// store.js + Provider wrapping + useSelector + useDispatch...` },
-      after: { lang: 'INDU', lines: 3, code: `// INDU — 3 lines, distributed by default\nsync let count: i32 = 0;\n\n// That's it. Persisted to SQLite.\n// Synced via WebRTC. Zero config.` }
+      after: { lang: 'INDU', lines: 3, code: `// INDU \u2014 3 lines, distributed by default\nsync let count: i32 = 0;\n\n// That's it. Persisted to SQLite.\n// Synced via WebRTC. Zero config.` }
     },
     {
       title: 'AI Agent',
       before: { lang: 'LangChain', lines: 45, code: `// LangChain agent setup\nimport { ChatOpenAI } from 'langchain/chat_models';\nimport { initializeAgentExecutor } from 'langchain/agents';\nimport { Calculator } from 'langchain/tools';\nimport { SerpAPI } from 'langchain/tools';\nimport { ConversationBufferMemory } from 'langchain/memory';\n\nconst model = new ChatOpenAI({ temperature: 0, modelName: 'gpt-4' });\nconst tools = [new Calculator(), await SerpAPI.fromEnvironment()];\nconst memory = new ConversationBufferMemory({\n  memoryKey: 'chat_history',\n  returnMessages: true\n});\nconst executor = await initializeAgentExecutorWithOptions(\n  tools, model,\n  { agentType: 'chat-conversational-react-description', memory }\n);\n\ntry {\n  const result = await executor.call({ input: userMessage });\n  return result.output;\n} catch (e) {\n  console.error('Agent error:', e);\n  // No automatic restart. Manual retry logic required.\n}` },
-      after: { lang: 'INDU', lines: 12, code: `// INDU native agent — 12 lines\nagent ResearchAgent {\n  tools: [Calculator, WebSearch],\n  model: nexus.gpt4(),\n  \n  fn handle(msg: UserMessage) -> AgentResponse {\n    let plan = self.plan(msg.text)?;\n    plan.execute().await\n  }\n}\n\n// Automatic restart on crash.\n// No manual error handling needed.` }
+      after: { lang: 'INDU', lines: 12, code: `// INDU native agent \u2014 12 lines\nagent ResearchAgent {\n  tools: [Calculator, WebSearch],\n  model: nexus.gpt4(),\n  \n  fn handle(msg: UserMessage) -> AgentResponse {\n    let plan = self.plan(msg.text)?;\n    plan.execute().await\n  }\n}\n\n// Automatic restart on crash.\n// No manual error handling needed.` }
     }
   ];
 
@@ -138,7 +141,6 @@
         ctx.fill();
       });
 
-      // Logo text appears when particles coalesce
       if (progress > 0.55) {
         const a = Math.min((progress - 0.55) / 0.45, 1);
         ctx.save();
@@ -159,7 +161,6 @@
         ctx.restore();
       }
 
-      // Progress bar
       ctx.fillStyle = 'rgba(255,255,255,0.08)';
       ctx.fillRect(cx - 140, cy + 64, 280, 1.5);
       ctx.fillStyle = '#E8A838';
@@ -168,7 +169,6 @@
       ctx.fillRect(cx - 140, cy + 64, 280 * progress, 1.5);
       ctx.shadowBlur = 0;
 
-      // Progress number
       ctx.font = '11px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
       ctx.fillStyle = 'rgba(255,255,255,0.35)';
@@ -182,6 +182,9 @@
           setTimeout(() => {
             preloaderVisible = false;
             heroHeadlineVisible = true;
+            // FIX #8: Only start Three.js rAF AFTER preloader exits
+            // This prevents two GPU-heavy loops running simultaneously
+            threeReady = true;
           }, 700);
         }, 500);
       }
@@ -198,12 +201,11 @@
     const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
     camera.position.z = 6;
 
-    const renderer = new THREE.WebGLRenderer({ canvas: canvasEl, antialias: true, alpha: true, powerPreference: "high-performance" });
+    const renderer = new THREE.WebGLRenderer({ canvas: canvasEl, antialias: true, alpha: true, powerPreference: 'high-performance' });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     threeRenderer = renderer;
 
-    // Aurora vertex shader
     const vertexShader = `
       uniform float uTime;
       varying vec3 vNormal;
@@ -228,7 +230,7 @@
         vec4 p = permute(permute(permute(
           i.z + vec4(0., i1.z, i2.z, 1.)) +
           i.y + vec4(0., i1.y, i2.y, 1.)) +
-          i.x + vec4(0., i1.x, i2.x, 1.));
+          i.x + vec4(0., i1.x, i2.x, 1.)));
         vec4 m = max(0.6 - vec4(
           dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.);
         m = m * m;
@@ -269,7 +271,6 @@
         col = mix(col, gold, aurora2 * 0.4 * (vDisp + 0.5));
         col = mix(col, violet, sin(phase * 0.5) * 0.3);
 
-        // Edge glow
         float fresnel = 1.0 - abs(dot(normalize(vNormal), vec3(0., 0., 1.)));
         col += teal * pow(fresnel, 3.0) * 0.8;
         col += gold * pow(fresnel, 6.0) * 0.4;
@@ -278,7 +279,7 @@
       }
     `;
 
-    const geometry = new THREE.IcosahedronGeometry(2.2, 3); // Reduced complexity from 4 to 3 for performance
+    const geometry = new THREE.IcosahedronGeometry(2.2, 3);
     const material = new THREE.ShaderMaterial({
       vertexShader,
       fragmentShader,
@@ -289,22 +290,19 @@
     const mesh = new THREE.Mesh(geometry, material);
     scene.add(mesh);
 
-    // Wireframe overlay
     const wireMat = new THREE.MeshBasicMaterial({
       color: 0x4ECDC4, wireframe: true, transparent: true, opacity: 0.06
     });
-    const wireMesh = new THREE.Mesh(new THREE.IcosahedronGeometry(2.22, 1), wireMat); // Reduced complexity
+    const wireMesh = new THREE.Mesh(new THREE.IcosahedronGeometry(2.22, 1), wireMat);
     scene.add(wireMesh);
 
-    // Scroll-linked rotation
     let scrollY = 0;
     const onScroll = () => { scrollY = window.scrollY; };
     window.addEventListener('scroll', onScroll, { passive: true });
 
     let t = 0;
-    let clock = new THREE.Clock();
-    
-    // Use IntersectionObserver to pause rendering when offscreen
+    const clock = new THREE.Clock();
+
     let isVisible = true;
     const observer = new IntersectionObserver((entries) => {
       isVisible = entries[0].isIntersecting;
@@ -313,11 +311,13 @@
 
     function animate() {
       animFrameId = requestAnimationFrame(animate);
-      if (!isVisible) return; // Skip rendering when not visible
-      
+
+      // FIX #8: Skip all GPU work until preloader has exited
+      if (!threeReady || !isVisible) return;
+
       const delta = clock.getDelta();
-      t += delta * 0.5; // Use delta time for consistent speed across frame rates
-      
+      t += delta * 0.5;
+
       material.uniforms.uTime.value = t;
       mesh.rotation.y = t * 0.15 + scrollY * 0.0005;
       mesh.rotation.x = Math.sin(t * 0.2) * 0.2 + scrollY * 0.0003;
@@ -345,11 +345,10 @@
     };
   }
 
-  // ─── Scroll Observer for Nav + Stats ─────────────────────────────────────
+  // ─── Scroll Observer for Stats ────────────────────────────────────────────
   function initScrollObservers() {
     if (!browser) return;
 
-    // Stats counter
     const statsObserver = new IntersectionObserver(
       ([entry]) => {
         if (!entry.isIntersecting) return;
@@ -396,16 +395,17 @@
     let cleanupGsap: (() => void) | undefined;
 
     (async () => {
+      // FIX #8: Start Three.js init early (loads shaders, creates context)
+      // but the rAF animate() loop is gated by threeReady flag
+      // so GPU rendering only begins after preloader exits
       cleanupThree = await initThree() || (() => {});
 
-      // GSAP scroll animations (loaded async)
       try {
         const { gsap } = await import('gsap');
         const { ScrollTrigger } = await import('gsap/ScrollTrigger');
         gsap.registerPlugin(ScrollTrigger);
 
         const ctx = gsap.context(() => {
-          // Problem cards scroll-in
           document.querySelectorAll('.problem-card').forEach((card, i) => {
             gsap.fromTo(card,
               { opacity: 0, x: i % 2 === 0 ? -80 : 80, rotateY: i % 2 === 0 ? -15 : 15 },
@@ -414,7 +414,6 @@
             );
           });
 
-          // Feature cards
           document.querySelectorAll('.feature-card').forEach((card, i) => {
             gsap.fromTo(card,
               { opacity: 0, y: 60, scale: 0.92 },
@@ -442,7 +441,7 @@
   });
 </script>
 
-<!-- ═══════════════════════════════════════════════ PRELOADER -->
+<!-- \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 PRELOADER -->
 {#if preloaderVisible}
 <div class="preloader" class:fading={preloaderFading}>
   <canvas bind:this={preloaderCanvasEl}></canvas>
@@ -450,14 +449,14 @@
 </div>
 {/if}
 
-<!-- ═══════════════════════════════════════════════ HERO -->
+<!-- \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 HERO -->
 <section class="hero" bind:this={heroSection}>
   <canvas bind:this={canvasEl} class="hero-canvas"></canvas>
 
   <div class="hero-content">
     <div class="hero-badge">
       <span class="badge-pulse"></span>
-      Open RFC · Language Design in Public
+      Open RFC \u00B7 Language Design in Public
     </div>
 
     <h1 class="hero-headline">
@@ -491,7 +490,7 @@
     <div class="hero-code-snippet" class:visible={heroHeadlineVisible}>
       <span class="code-label">Quick look:</span>
       <pre><code><span class="kw">agent</span> <span class="fn">SummaryBot</span> {"{"}
-  <span class="kw">fn</span> <span class="fn">handle</span>(url: <span class="ty">str</span>) → <span class="ty">Result</span>&lt;<span class="ty">str</span>&gt; {"{"}
+  <span class="kw">fn</span> <span class="fn">handle</span>(url: <span class="ty">str</span>) \u2192 <span class="ty">Result</span>&lt;<span class="ty">str</span>&gt; {"{"}
     <span class="kw">let</span> page = nexus.fetch(url).<span class="kw">await</span>?;
     page.summarize(model: <span class="st">"phi-3"</span>, max_tokens: <span class="num">200</span>)
   {"}"}
@@ -505,7 +504,7 @@
   </div>
 </section>
 
-<!-- ═══════════════════════════════════════════════ PROBLEM SECTION -->
+<!-- \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 PROBLEM SECTION -->
 <section class="section-problem">
   <div class="container">
     <div class="section-label">The Problem</div>
@@ -525,7 +524,7 @@
   </div>
 </section>
 
-<!-- ═══════════════════════════════════════════════ SOLUTION SECTION -->
+<!-- \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 SOLUTION SECTION -->
 <section class="section-solution">
   <div class="container">
     <div class="section-label">The Solution</div>
@@ -543,7 +542,7 @@
   </div>
 </section>
 
-<!-- ═══════════════════════════════════════════════ CODE COMPARISON -->
+<!-- \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 CODE COMPARISON -->
 <section class="section-compare">
   <div class="container">
     <div class="section-label">The Proof</div>
@@ -560,7 +559,7 @@
             </div>
             <pre><code>{comp.before.code}</code></pre>
           </div>
-          <div class="compare-arrow">→</div>
+          <div class="compare-arrow">\u2192</div>
           <div class="compare-after">
             <div class="compare-header">
               <span class="lang-badge after">{comp.after.lang}</span>
@@ -574,7 +573,7 @@
   </div>
 </section>
 
-<!-- ═══════════════════════════════════════════════ STATS -->
+<!-- \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 STATS -->
 <section class="section-stats" bind:this={statsSection}>
   <div class="container">
     <div class="stats-grid">
@@ -590,16 +589,16 @@
   </div>
 </section>
 
-<!-- ═══════════════════════════════════════════════ CTA / NEWSLETTER -->
+<!-- \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550 CTA / NEWSLETTER -->
 <section class="section-cta">
   <div class="container">
     <div class="cta-inner">
       <h2>Join the frontier.</h2>
-      <p>Get the INDU Signal — monthly updates on language development, RFCs, and community projects.</p>
+      <p>Get the INDU Signal \u2014 monthly updates on language development, RFCs, and community projects.</p>
 
       {#if newsletterSubmitted}
         <div class="newsletter-success">
-          <span>✓</span> You're in. First issue drops soon.
+          <span>\u2713</span> You're in. First issue drops soon.
         </div>
       {:else}
         <form class="newsletter-form" onsubmit={submitNewsletter}>
@@ -610,13 +609,13 @@
             required
           />
           <button type="submit" disabled={newsletterSubmitting}>
-            {newsletterSubmitting ? 'Joining...' : 'Join →'}
+            {newsletterSubmitting ? 'Joining...' : 'Join \u2192'}
           </button>
         </form>
       {/if}
 
       <div class="cta-links">
-        <a href="https://github.com/indu-lang/indu" target="_blank" rel="noreferrer">★ Star on GitHub</a>
+        <a href="https://github.com/indu-lang/indu" target="_blank" rel="noreferrer">\u2605 Star on GitHub</a>
         <a href="/foundation/rfcs">Read open RFCs</a>
         <a href="/community">Join Discord</a>
       </div>
@@ -625,7 +624,6 @@
 </section>
 
 <style>
-  /* ── CSS Custom Properties ────────────────────────────────────────── */
   :root {
     --primary: #1A1A2E;
     --gold: #E8A838;
@@ -640,10 +638,8 @@
     --ease-out: cubic-bezier(0.19,1,0.22,1);
   }
 
-  /* ── Reset ────────────────────────────────────────────────────────── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  /* ── Preloader ────────────────────────────────────────────────────── */
   .preloader {
     position: fixed; inset: 0; z-index: 9999;
     transition: opacity 0.7s var(--ease-out);
@@ -652,7 +648,6 @@
   .preloader canvas { width: 100%; height: 100%; }
   .preloader-progress { display: none; }
 
-  /* ── Hero ─────────────────────────────────────────────────────────── */
   .hero {
     position: relative; height: 100vh; min-height: 700px;
     display: flex; align-items: center; justify-content: center;
@@ -764,7 +759,6 @@
     transform: rotate(45deg);
   }
 
-  /* ── Sections ─────────────────────────────────────────────────────── */
   .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
   .section-label {
     font-family: var(--font-mono); font-size: 0.72rem;
@@ -924,7 +918,6 @@
   }
   .cta-links a:hover { color: var(--gold); }
 
-  /* ── Animations ───────────────────────────────────────────────────── */
   @keyframes pulse {
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.5; transform: scale(1.4); }
@@ -934,7 +927,6 @@
     50% { transform: translateX(-50%) translateY(8px); }
   }
 
-  /* ── Mobile ───────────────────────────────────────────────────────── */
   @media (max-width: 768px) {
     .nav-links { display: none; }
     .nav-links.open {
